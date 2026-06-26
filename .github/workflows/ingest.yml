@@ -24,8 +24,8 @@ jobs:
 
       - name: Fetch modules
         env:
-          SYNC_TOKEN: ${{ secrets.CI_TOKEN }}
-        run: git clone https://${SYNC_TOKEN}@github.com/${{ github.repository_owner }}/scanner-core.git .pipeline
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
+        run: git clone https://${CI_TOKEN}@github.com/${{ github.repository_owner }}/scanner-core.git .pipeline
 
       - name: Install dependencies
         run: |
@@ -37,11 +37,9 @@ jobs:
 
       - name: Execute pipeline
         env:
-          # app_id: ${{ secrets.APP_ID }}
-          # private_key: ${{ secrets.PRIVATE_KEY }}
-          # installation_id: ${{ secrets.INSTALLATION_ID }}
-          API_KEYRING: ${{ secrets.ACCESS_BUNDLE }}
-          SYNC_TOKEN: ${{ secrets.CI_TOKEN }}
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
+          ACCESS_BUNDLE: ${{ secrets.ACCESS_BUNDLE }}
+          APP_CONFIG: ${{ secrets.APP_CONFIG }}
           PIPELINE_GROUP: gamma
         run: python .pipeline/processor.py
 
@@ -54,7 +52,7 @@ jobs:
       - name: Sync module index
         if: always()
         env:
-          SYNC_TOKEN: ${{ secrets.CI_TOKEN }}
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
         run: |
           cd .pipeline
           git config user.name "github-actions[bot]"
