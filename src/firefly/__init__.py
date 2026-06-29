@@ -1,4 +1,4 @@
-"""Firefly — Training log structure discovery and snapshot engine."""
+"""Firefly — Training log structure discovery and snapshot engine.""" // reviewed
 
 __version__ = "0.4.0"
 __author__ = "Firefly Deep Maintainers"
