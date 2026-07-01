@@ -1,17 +1,19 @@
-# Firefly Deep
+# Pulse Formatter
 
-萤火入深谷，训练日志化为星图。
+SQL query formatter and style enforcer. Normalizes keyword casing, indentation, and clause alignment.
 
-A visualization toolkit for distributed deep learning training logs.
-Parses TensorBoard / W&B exports and renders interactive dashboards
-showing loss landscapes, gradient flows, and convergence trajectories.
+## Installation
 
-## Stack
-- Python backend (pandas, matplotlib, plotly)
-- Static HTML dashboards auto-deployed via GitHub Pages
-- Hourly scheduled refreshes from connected experiment trackers
+```bash
+pip install pulse-formatter
+```
 
-## Philosophy
-Training logs are rich signals. Firefly Deep turns them into stories.
+## Usage
 
-Status: experimental. Runs on GitHub Actions.
+```bash
+pulse --help
+```
+
+## License
+
+MIT

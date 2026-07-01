@@ -1,2 +1,4 @@
-# firefly deep -- keep cache out of repo
+# pulse formatter -- exclude formatted output, __pycache__/
 __pycache__/
+*.pyc
+.DS_Store

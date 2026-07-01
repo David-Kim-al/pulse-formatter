@@ -1,57 +1,57 @@
-"""Tests for Firefly log parser, discoverer, and comparator."""
+"""Tests for Pulse log formatter, checker, and comparator."""
 
 import tempfile
 from pathlib import Path
 
-from firefly.parser import (
-    LogParser, LogSnapshot, LogFormat, MetricPoint, MetricKind, classify_metric,
+from pulse.formatter import (
+    SQLFormatter, FormatResult, LogFormat, MetricPoint, MetricKind, classify_metric,
 )
-from firefly.discoverer import LogDiscoverer, MetricExtractor, Experiment
-from firefly.comparator import SnapshotComparator, MetricDiff
+from pulse.checker import StyleChecker, FormatMetric, Experiment
+from pulse.comparator import FormatComparator, MetricDiff
 
 
-class TestLogParser:
+class TestSQLFormatter:
     def test_detect_jsonl(self):
-        parser = LogParser()
+        formatter = SQLFormatter()
         with tempfile.NamedTemporaryFile(suffix=".jsonl", mode="w", delete=False) as f:
             f.write('{"step": 1, "loss": 2.5, "lr": 0.001}\n')
             f.write('{"step": 2, "loss": 2.3, "lr": 0.0009}\n')
             f.flush()
-            snap = parser.parse(Path(f.name))
+            snap = formatter.parse(Path(f.name))
             assert snap.format == LogFormat.JSONL
             assert "loss" in snap.metric_names
             Path(f.name).unlink()
 
     def test_parse_jsonl_metrics(self):
-        parser = LogParser()
+        formatter = SQLFormatter()
         with tempfile.NamedTemporaryFile(suffix=".jsonl", mode="w", delete=False) as f:
             f.write('{"step": 10, "loss": 0.5, "accuracy": 0.9}\n')
             f.flush()
-            snap = parser.parse(Path(f.name))
+            snap = formatter.parse(Path(f.name))
             assert snap.metrics["loss"][0].value == 0.5
             assert snap.metrics["accuracy"][0].value == 0.9
             Path(f.name).unlink()
 
     def test_detect_plaintext(self):
-        parser = LogParser()
+        formatter = SQLFormatter()
         with tempfile.NamedTemporaryFile(suffix=".log", mode="w", delete=False) as f:
             f.write("Step 100: loss=1.234, acc=0.876\n")
             f.write("Step 200: loss=0.987, acc=0.912\n")
             f.flush()
-            snap = parser.parse(Path(f.name))
+            snap = formatter.parse(Path(f.name))
             assert snap.raw_lines >= 1
             Path(f.name).unlink()
 
 
-class TestMetricExtractor:
+class TestFormatMetric:
     def test_smooth(self):
         pts = [MetricPoint(step=i, value=float(i % 5), metric_name="test") for i in range(20)]
-        smoothed = MetricExtractor.smooth(pts, window=5)
+        smoothed = FormatMetric.smooth(pts, window=5)
         assert len(smoothed) == 20
 
     def test_downsample(self):
         pts = [MetricPoint(step=i, value=float(i), metric_name="test") for i in range(1000)]
-        result = MetricExtractor.downsample(pts, target_steps=50)
+        result = FormatMetric.downsample(pts, target_steps=50)
         assert len(result) <= 50
 
     def test_find_plateau_decreasing(self):
@@ -59,7 +59,7 @@ class TestMetricExtractor:
             MetricPoint(step=i, value=max(0.01, 1.0 / (i + 1)), metric_name="loss")
             for i in range(50)
         ]
-        step = MetricExtractor.find_plateau(pts, patience=10, minimize=True)
+        step = FormatMetric.find_plateau(pts, patience=10, minimize=True)
         assert step is not None
 
     def test_convergence_score(self):
@@ -67,7 +67,7 @@ class TestMetricExtractor:
             MetricPoint(step=i, value=1.0 / (i + 1) + 0.01, metric_name="loss")
             for i in range(100)
         ]
-        score = MetricExtractor.convergence_score(pts)
+        score = FormatMetric.convergence_score(pts)
         assert 0 <= score <= 1
 
 
@@ -88,19 +88,19 @@ class TestClassifyMetric:
         assert classify_metric("some_random_metric") == MetricKind.CUSTOM
 
 
-class TestSnapshotComparator:
+class TestFormatComparator:
     def test_compare_snapshots(self):
-        snap_a = LogSnapshot(source_path="a.log", format=LogFormat.JSONL)
+        snap_a = FormatResult(source_path="a.log", format=LogFormat.JSONL)
         snap_a.metrics["loss"] = [
             MetricPoint(step=i, value=float(10 - i * 0.1), metric_name="loss")
             for i in range(10)
         ]
-        snap_b = LogSnapshot(source_path="b.log", format=LogFormat.JSONL)
+        snap_b = FormatResult(source_path="b.log", format=LogFormat.JSONL)
         snap_b.metrics["loss"] = [
             MetricPoint(step=i, value=float(10 - i * 0.08), metric_name="loss")
             for i in range(10)
         ]
-        comparator = SnapshotComparator()
+        comparator = FormatComparator()
         diff = comparator.compare_snapshots(snap_a, snap_b)
         assert len(diff.metric_diffs) == 1
         assert "loss" in diff.metric_diffs[0].metric_name

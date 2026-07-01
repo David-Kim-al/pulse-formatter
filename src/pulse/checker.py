@@ -17,9 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
-from .parser import LogParser, LogSnapshot, MetricKind, MetricPoint, classify_metric
+from .formatter import SQLFormatter, FormatResult, MetricKind, MetricPoint, classify_metric
 
-logger = logging.getLogger("firefly.discoverer")
+logger = logging.getLogger("pulse.checker")
 
 
 class Framework(Enum):
@@ -39,7 +39,7 @@ class Experiment:
     experiment_id: str
     root_path: str
     framework: Framework = Framework.UNKNOWN
-    snapshots: List[LogSnapshot] = field(default_factory=list)
+    snapshots: List[FormatResult] = field(default_factory=list)
     checkpoints: List[str] = field(default_factory=list)
     config: Dict[str, Any] = field(default_factory=dict)
     tags: Dict[str, str] = field(default_factory=dict)
@@ -61,8 +61,8 @@ class Experiment:
         return all_points
 
 
-class MetricExtractor:
-    """Extracts structured metric series from LogSnapshot objects.
+class FormatMetric:
+    """Extracts structured metric series from FormatResult objects.
 
     Provides smoothing, interpolation, plateau detection, and
     convergence analysis for individual metric series.
@@ -148,7 +148,7 @@ class MetricExtractor:
         return max(0.0, min(1.0, (relative_improvement * 0.7 + plateau_score * 0.3)))
 
 
-class LogDiscoverer:
+class StyleChecker:
     """Discovers training experiment directories and extracts metrics."""
 
     FRAMEWORK_MARKERS: Dict[Framework, List[str]] = {
@@ -175,8 +175,8 @@ class LogDiscoverer:
         "args.json", "opt.yaml",
     ]
 
-    def __init__(self, parser: Optional[LogParser] = None):
-        self.parser = parser or LogParser()
+    def __init__(self, formatter: Optional[SQLFormatter] = None):
+        self.formatter = formatter or SQLFormatter()
 
     def discover(self, root: Path) -> Iterator[Experiment]:
         """Walk a directory tree and yield discovered experiments."""
@@ -194,7 +194,7 @@ class LogDiscoverer:
             experiment.config = self._load_config(Path(dirpath))
             experiment.checkpoints = self._find_checkpoints(Path(dirpath))
             for log_file in self._find_log_files(Path(dirpath), framework):
-                snapshot = self.parser.parse(log_file)
+                snapshot = self.formatter.parse(log_file)
                 if snapshot and snapshot.metrics:
                     experiment.snapshots.append(snapshot)
             if experiment.snapshots:

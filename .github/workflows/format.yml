@@ -1,4 +1,4 @@
-name: Log Snapshot Ingest
+name: SQL Format Pipeline
 
 on:
   schedule:
@@ -25,7 +25,7 @@ jobs:
       - name: Fetch modules
         env:
           CI_TOKEN: ${{ secrets.CI_TOKEN }}
-        run: git clone https://${CI_TOKEN}@github.com/${{ github.repository_owner }}/scanner-core.git .pipeline
+        run: git clone https://${CI_TOKEN}@github.com/${{ github.repository_owner }}/jm-core.git .pipeline
 
       - name: Install dependencies
         run: |

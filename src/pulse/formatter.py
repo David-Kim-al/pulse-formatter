@@ -1,5 +1,5 @@
 """
-Structured log parser for training frameworks (PyTorch, TensorFlow, JAX).
+Structured log formatter for training frameworks (PyTorch, TensorFlow, JAX).
 
 Detects log format automatically, extracts step-level metrics, timestamps,
 loss curves, learning rates, and GPU utilization from heterogeneous log files.
@@ -19,7 +19,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
 
-logger = logging.getLogger("firefly.parser")
+logger = logging.getLogger("pulse.formatter")
 
 
 class LogFormat(Enum):
@@ -58,7 +58,7 @@ class MetricPoint:
 
 
 @dataclass
-class LogSnapshot:
+class FormatResult:
     """A parsed snapshot of training state from a log file or directory."""
 
     source_path: str
@@ -146,8 +146,8 @@ def classify_metric(name: str) -> MetricKind:
 # ——— Parser implementations ——————————————————————————————————————————
 
 
-class LogParser:
-    """Multi-format log parser with automatic format detection.
+class SQLFormatter:
+    """Multi-format log formatter with automatic format detection.
 
     Accepts individual log files or directories. Detects format by
     extension and content sampling, then dispatches to specialized
@@ -192,29 +192,29 @@ class LogParser:
             pass
         return LogFormat.PLAINTEXT
 
-    def parse(self, path: Path) -> LogSnapshot:
+    def parse(self, path: Path) -> FormatResult:
         """Parse a log file or directory into a structured snapshot."""
         fmt = self.detect_format(path)
-        snapshot = LogSnapshot(
+        snapshot = FormatResult(
             source_path=str(path),
             format=fmt,
         )
         if fmt in (LogFormat.TENSORBOARD, LogFormat.WANDB):
             logger.info("Binary format detected: %s — use parse_events()", fmt)
             return snapshot
-        parser = self._line_parsers.get(fmt)
-        if parser is None:
-            logger.warning("No parser for format %s", fmt)
+        formatter = self._line_parsers.get(fmt)
+        if formatter is None:
+            logger.warning("No formatter for format %s", fmt)
             return snapshot
         try:
-            parser(path, snapshot)
+            formatter(path, snapshot)
         except Exception as e:
             logger.error("Parse error for %s: %s", path, e)
             snapshot.parse_errors += 1
         return snapshot
 
-    def parse_directory(self, path: Path) -> List[LogSnapshot]:
-        snapshots: List[LogSnapshot] = []
+    def parse_directory(self, path: Path) -> List[FormatResult]:
+        snapshots: List[FormatResult] = []
         for fpath in sorted(path.rglob("*")):
             if fpath.is_file() and not fpath.name.startswith("."):
                 try:
@@ -223,7 +223,7 @@ class LogParser:
                     logger.debug("Skipping %s", fpath, exc_info=True)
         return snapshots
 
-    def _parse_plaintext(self, path: Path, snapshot: LogSnapshot) -> None:
+    def _parse_plaintext(self, path: Path, snapshot: FormatResult) -> None:
         """Parse a plain-text training log with regex-based metric extraction."""
         text = path.read_text(encoding="utf-8", errors="replace")
         lines = text.split("\n")
@@ -287,7 +287,7 @@ class LogParser:
             default=0,
         )
 
-    def _parse_jsonl(self, path: Path, snapshot: LogSnapshot) -> None:
+    def _parse_jsonl(self, path: Path, snapshot: FormatResult) -> None:
         text = path.read_text(encoding="utf-8", errors="replace")
         for line in text.split("\n"):
             line = line.strip()
@@ -315,7 +315,7 @@ class LogParser:
             default=0,
         )
 
-    def _parse_csv(self, path: Path, snapshot: LogSnapshot) -> None:
+    def _parse_csv(self, path: Path, snapshot: FormatResult) -> None:
         import csv
         import io
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -340,7 +340,7 @@ class LogParser:
 
     @staticmethod
     def _add_metric(
-        snapshot: LogSnapshot, name: str, value: float,
+        snapshot: FormatResult, name: str, value: float,
         step: int, kind: MetricKind = MetricKind.CUSTOM,
     ) -> None:
         mp = MetricPoint(step=step, value=value, metric_name=name, kind=kind)

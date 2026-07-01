@@ -3,29 +3,27 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "firefly-deep"
-version = "0.4.0"
-description = "Training log structure discovery, parsing, and snapshot comparison"
+name = "pulse-formatter"
+version = "0.3.0"
+description = "SQL query formatter and style enforcer"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Visualization",
+    "Intended Audience :: Developers",
+    "Topic :: Database",
 ]
 dependencies = [
-    "pandas>=2.0",
-    "matplotlib>=3.7",
-    "plotly>=5.14",
-    "pyyaml>=6.0",
+    "click>=8.1",
+    "sqlparse>=0.4",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov", "ruff"]
 
 [project.scripts]
-firefly = "firefly.cli:main"
+pulse = "pulse.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

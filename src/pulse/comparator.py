@@ -12,8 +12,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .parser import LogSnapshot, MetricKind, MetricPoint
-from .discoverer import Experiment, MetricExtractor
+from .formatter import FormatResult, MetricKind, MetricPoint
+from .checker import Experiment, FormatMetric
 
 
 @dataclass
@@ -78,7 +78,7 @@ class ExperimentDiff:
         }
 
 
-class SnapshotComparator:
+class FormatComparator:
     """Statistical comparison of training log snapshots.
 
     Supports paired and unpaired comparison, Welch's t-test,
@@ -95,7 +95,7 @@ class SnapshotComparator:
         self.significance = significance
 
     def compare_snapshots(
-        self, a: LogSnapshot, b: LogSnapshot
+        self, a: FormatResult, b: FormatResult
     ) -> ExperimentDiff:
         """Compare two log snapshots metric by metric."""
         common_metrics = set(a.metric_names) & set(b.metric_names)
@@ -179,7 +179,7 @@ class SnapshotComparator:
     ) -> Tuple[bool, float]:
         """Welch's t-test for unequal variances."""
         n_a, n_b = len(a), len(b)
-        if n_a < SnapshotComparator.MIN_SAMPLES_FOR_TEST or n_b < SnapshotComparator.MIN_SAMPLES_FOR_TEST:
+        if n_a < FormatComparator.MIN_SAMPLES_FOR_TEST or n_b < FormatComparator.MIN_SAMPLES_FOR_TEST:
             return False, 1.0
         mean_a = sum(a) / n_a
         mean_b = sum(b) / n_b
@@ -194,7 +194,7 @@ class SnapshotComparator:
         df_num = (var_a / n_a + var_b / n_b) ** 2
         df_den = ((var_a / n_a) ** 2) / (n_a - 1) + ((var_b / n_b) ** 2) / (n_b - 1)
         df = df_num / df_den if df_den > 1e-12 else 20
-        p_val = SnapshotComparator._t_survival(abs(t_stat), df)
+        p_val = FormatComparator._t_survival(abs(t_stat), df)
         return p_val < 0.05, p_val
 
     @staticmethod

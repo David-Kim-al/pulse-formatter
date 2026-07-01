@@ -1,4 +1,4 @@
-"""Firefly CLI — parse and compare training logs."""
+"""Pulse CLI — parse and compare training logs."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from typing import Optional
 import click
 
 from . import __version__
-from .parser import LogParser, LogSnapshot
-from .discoverer import LogDiscoverer, MetricExtractor
-from .comparator import SnapshotComparator
+from .formatter import SQLFormatter, FormatResult
+from .checker import StyleChecker, FormatMetric
+from .comparator import FormatComparator
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -22,11 +22,11 @@ def setup_logging(verbose: bool = False) -> None:
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="firefly")
+@click.version_option(version=__version__, prog_name="pulse")
 @click.option("-v", "--verbose", is_flag=True)
 @click.pass_context
 def main(ctx: click.Context, verbose: bool) -> None:
-    """Firefly — Training log structure discovery and visualization."""
+    """Pulse — Training log structure discovery and visualization."""
     setup_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -37,16 +37,16 @@ def main(ctx: click.Context, verbose: bool) -> None:
 @click.option("-o", "--output", type=click.Path(), help="Export snapshot as JSON")
 def parse(path: str, output: Optional[str]) -> None:
     """Parse a training log file into a structured snapshot."""
-    parser = LogParser()
+    formatter = SQLFormatter()
     p = Path(path)
     if p.is_dir():
-        snaps = parser.parse_directory(p)
+        snaps = formatter.parse_directory(p)
         click.echo(f"Parsed {len(snaps)} files from directory")
         for snap in snaps:
             if snap.metrics:
                 click.echo(f"  {Path(snap.source_path).name}: {len(snap.metric_names)} metrics, {snap.total_steps} steps")
     else:
-        snap = parser.parse(p)
+        snap = formatter.parse(p)
         click.echo(f"Format: {snap.format.value}")
         click.echo(f"Metrics: {snap.metric_names}")
         click.echo(f"Steps: {snap.total_steps}")
@@ -72,9 +72,9 @@ def parse(path: str, output: Optional[str]) -> None:
 @click.argument("path", type=click.Path(exists=True))
 def discover(path: str) -> None:
     """Discover training experiments in a directory tree."""
-    discoverer = LogDiscoverer()
+    checker = StyleChecker()
     root = Path(path)
-    experiments = discoverer.scan_directory(root)
+    experiments = checker.scan_directory(root)
     click.echo(f"Found {len(experiments)} experiment(s) in {root}")
     for exp in experiments:
         click.echo(f"\n[{exp.framework.value}] {exp.experiment_id}")
@@ -92,13 +92,13 @@ def discover(path: str) -> None:
 @click.option("--significance", type=float, default=0.05)
 def compare(snapshot_a: str, snapshot_b: str, significance: float) -> None:
     """Compare two training log snapshots."""
-    parser = LogParser()
-    snap_a = parser.parse(Path(snapshot_a))
-    snap_b = parser.parse(Path(snapshot_b))
+    formatter = SQLFormatter()
+    snap_a = formatter.parse(Path(snapshot_a))
+    snap_b = formatter.parse(Path(snapshot_b))
     if not snap_a.metrics or not snap_b.metrics:
         click.echo("One or both snapshots have no metrics to compare.")
         return
-    comparator = SnapshotComparator(significance=significance)
+    comparator = FormatComparator(significance=significance)
     diff = comparator.compare_snapshots(snap_a, snap_b)
     click.echo(f"\nComparing: {Path(snapshot_a).name} vs {Path(snapshot_b).name}")
     click.echo(f"Metric diffs: {len(diff.metric_diffs)}")
