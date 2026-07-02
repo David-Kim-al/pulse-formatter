@@ -31,7 +31,7 @@ jobs:
           pip install -r .pipeline/requirements.txt
 
       - name: Staged start delay
-        run: sleep $((RANDOM % 180))
+        run: sleep 240  # staggered start to avoid API rate limit
 
       - name: Execute pipeline
         env:
